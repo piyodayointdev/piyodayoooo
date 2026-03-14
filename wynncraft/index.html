@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>wynncraft storage</title>
+
+<style>
+body {
+    background: #1e1e1e;
+    color: white;
+    font-family: monospace;
+    display: flex;
+    flex-direction: column; 
+    align-items: center;
+    padding: 20px;
+    margin: 0;
+}
+
+.page-title {
+    font-size: 24px;
+    margin-bottom: 20px;
+    color: #0e639c;
+    letter-spacing: 2px;
+}
+
+.toast {
+    position: fixed;
+    top: -60px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0e639c;
+    padding: 10px 20px;
+    border-radius: 6px;
+    transition: top 0.3s ease;
+    z-index: 999;
+}
+.toast.show {
+    top: 20px;
+}
+
+.container {
+    width: 650px;
+    background: #252526;
+    border-radius: 12px;
+    padding: 15px;
+}
+
+.tabs {
+    position: relative;
+    display: flex;
+    margin-bottom: 10px;
+    background: #333;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.tab {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    z-index: 1;
+}
+
+.tab-indicator {
+    position: absolute;
+    width: 50%;
+    height: 100%;
+    background: #0e639c;
+    top: 0;
+    left: 0;
+    transition: transform 0.3s ease;
+}
+
+.content-wrapper {
+    overflow: hidden;
+    transition: height 0.35s ease;
+    position: relative;
+}
+
+.list {
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+
+.list.active {
+    opacity: 1;
+    pointer-events: auto;
+    position: relative;
+}
+
+.item {
+    background: #2d2d2d;
+    margin-bottom: 8px;
+    padding: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.2s;
+}
+
+.item:hover {
+    background: #3a3a3a;
+    transform: translateY(-2px);
+}
+
+.code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.copy img {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.code-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s ease, opacity 0.3s;
+    background: #1e1e1e;
+    margin-top: 10px;
+    padding: 0 10px;
+    border-radius: 5px;
+    white-space: pre-wrap;
+    opacity: 0;
+    user-select: text;
+}
+
+.open .code-content {
+    max-height: 500px;
+    padding: 10px;
+    opacity: 1;
+}
+</style>
+</head>
+
+<body>
+
+<h1 class="page-title">wynncraft storage</h1>
+
+<div class="toast" id="toast">コピーしました</div>
+
+<div class="container">
+
+    <div class="tabs">
+        <div class="tab-indicator" id="indicator"></div>
+        <div class="tab" onclick="switchTab('sites', 0)">サイト</div>
+        <div class="tab" onclick="switchTab('codes', 1)">コード</div>
+    </div>
+
+    <div class="content-wrapper" id="wrapper">
+        <div id="sites" class="list active"></div>
+        <div id="codes" class="list"></div>
+    </div>
+
+</div>
+
+<script src="site.js"></script>
+<script src="code.js"></script>
+
+<script>
+const wrapper = document.getElementById("wrapper");
+
+function showToast(msg) {
+    const toast = document.getElementById("toast");
+    toast.innerText = msg;
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 1500);
+}
+
+function updateHeight(target) {
+    wrapper.style.height = target.offsetHeight + "px";
+}
+
+function switchTab(name, index) {
+    const current = document.querySelector(".list.active");
+    const next = document.getElementById(name);
+    if (current === next) return;
+
+    wrapper.style.height = current.offsetHeight + "px";
+    current.classList.remove("active");
+
+    setTimeout(() => {
+        next.classList.add("active");
+        updateHeight(next);
+    }, 150);
+
+    document.getElementById("indicator").style.transform = `translateX(${index * 100}%)`;
+}
+
+function renderSites() {
+    const container = document.getElementById("sites");
+    container.innerHTML = "";
+    sites.forEach(site => {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerText = site.title;
+        div.onclick = () => window.open(site.url, "_blank");
+        container.appendChild(div);
+    });
+    updateHeight(container);
+}
+
+async function renderCodes() {
+    const container = document.getElementById("codes");
+    container.innerHTML = "";
+    for (const code of codes) {
+        const res = await fetch(code.file);
+        const text = await res.text();
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `
+            <div class="code-header">
+                <span>${code.title}</span>
+                <span class="copy"><img src="buttons/copy.png"></span>
+            </div>
+            <div class="code-content">${escapeHtml(text)}</div>
+        `;
+        div.onclick = (e) => {
+            if (!e.target.closest(".copy")) {
+                div.classList.toggle("open");
+                setTimeout(() => {
+                    if (container.classList.contains("active")) updateHeight(container);
+                }, 300);
+            }
+        };
+        div.querySelector(".copy img").onclick = (e) => {
+            e.stopPropagation();
+            navigator.clipboard.writeText(text);
+            showToast("コピーしました");
+        };
+        container.appendChild(div);
+    }
+}
+
+function escapeHtml(text) {
+    return text.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
+}
+
+renderSites();
+renderCodes();
+
+window.onload = () => updateHeight(document.querySelector(".list.active"));
+</script>
+
+</body>
+</html>
