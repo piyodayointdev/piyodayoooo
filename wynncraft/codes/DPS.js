@@ -1,1 +1,0 @@
-§0§l§k:§4§l {format(adps)} §r§4§lDPS §0§l§k:
