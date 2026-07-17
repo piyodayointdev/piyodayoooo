@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Overlay</title>
+    <style>
+        /* =========================================
+           共通変数の定義と基本スタイル
+        ========================================= */
+        :root {
+            --accent-green: #1DB954;
+            --accent-blue: #007AFF;
+            --bg-dark: #0b0b0f;
+            --text-main: #f5f5f7;
+            --text-sub: rgba(245, 245, 247, 0.55);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans JP", sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            overflow-x: hidden;
+            line-height: 1.6;
+            letter-spacing: -0.01em;
+        }
+
+        /* 背景のダイナミックカラーオーブ */
+        .background-glow {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(140px);
+            opacity: 0.45;
+            z-index: -1;
+            pointer-events: none;
+            animation: orbMovement 25s infinite alternate ease-in-out;
+        }
+        .orb-green {
+            width: 60vw;
+            height: 60vw;
+            background: radial-gradient(circle, var(--accent-green) 0%, rgba(29,185,84,0) 70%);
+            top: -20%;
+            left: -10%;
+        }
+        .orb-blue {
+            width: 50vw;
+            height: 50vw;
+            background: radial-gradient(circle, var(--accent-blue) 0%, rgba(0,122,255,0) 70%);
+            bottom: -15%;
+            right: -10%;
+            animation-delay: -7s;
+        }
+
+        @keyframes orbMovement {
+            0% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(40px, 60px) scale(1.1); }
+            100% { transform: translate(-30px, -20px) scale(0.95); }
+        }
+
+        /* =========================================
+           ヘッダー & ヒーローセクション
+        ========================================= */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2rem 8%;
+            position: absolute;
+            width: 100%;
+            z-index: 10;
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            background: linear-gradient(135deg, #fff 0%, #a1a1a6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-section {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 120px 20px 60px 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .hero-title {
+            font-size: 3.5rem;
+            font-weight: 800;
+            line-height: 1.15;
+            margin-bottom: 1.25rem;
+            background: linear-gradient(180deg, #ffffff 30%, #b0b0b5 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            opacity: 0;
+            transform: translateY(25px);
+            animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .hero-subtitle {
+            font-size: 1.15rem;
+            color: var(--text-sub);
+            max-width: 640px;
+            margin-bottom: 3.5rem;
+            font-weight: 400;
+            opacity: 0;
+            transform: translateY(25px);
+            animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.15s;
+        }
+
+        .cta-container {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            opacity: 0;
+            transform: translateY(25px);
+            animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.3s;
+            margin-bottom: 5rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px 32px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border-radius: 24px;
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-green);
+            color: #ffffff;
+            border: none;
+            box-shadow: 0 8px 24px rgba(29, 185, 84, 0.25);
+        }
+
+        .btn-primary:hover {
+            background-color: #23d05f;
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(29, 185, 84, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            border: 1px solid rgba(255,255,255,0.08);
+            backdrop-filter: blur(8px);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* =========================================
+           アプリモックアップ
+        ========================================= */
+        .overlay-mockup {
+            width: 400px;
+            height: 220px;
+            background: linear-gradient(to bottom, rgba(15, 15, 15, 0.9) 0%, rgba(15, 15, 15, 0.78) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 18px;
+            box-shadow: 0 40px 100px rgba(0, 0, 0, 0.7);
+            position: relative;
+            opacity: 0;
+            transform: translateY(40px) scale(0.98);
+            animation: fadeUpScale 1s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.45s;
+            transition: box-shadow 0.3s ease;
+        }
+
+        .overlay-mockup::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border-radius: 18px;
+            padding: 1px;
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.23) 0%, rgba(29, 185, 84, 0.39) 100%);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .overlay-glow-pulse {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            border-radius: 18px;
+            background: linear-gradient(to bottom, transparent 40%, rgba(29, 185, 84, 0.25) 100%);
+            animation: cardGlowPulse 3.5s infinite ease-in-out;
+            pointer-events: none;
+        }
+
+        @keyframes cardGlowPulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1.0; }
+        }
+
+        .overlay-mockup:hover {
+            box-shadow: 0 45px 110px rgba(0, 0, 0, 0.8), 0 0 40px rgba(29, 185, 84, 0.15);
+        }
+
+        .album-wrapper {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 80px;
+            height: 80px;
+        }
+
+        .album-shadow-pulse {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.3);
+            filter: blur(8px);
+            z-index: 1;
+            animation: shadowPulse 3.5s infinite ease-in-out;
+        }
+
+        .album-core {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #2c3e50, #27ae60);
+            z-index: 2;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        @keyframes shadowPulse {
+            0%, 100% { transform: scale(1.0); opacity: 0.1; filter: blur(5px); }
+            50% { transform: scale(1.15); opacity: 0.3; filter: blur(12px); }
+        }
+
+        .track-name {
+            position: absolute;
+            top: 20px;
+            left: 116px;
+            right: 55px; 
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .artist-name {
+            position: absolute;
+            top: 44px;
+            left: 116px;
+            right: 20px;
+            font-size: 0.8rem;
+            color: var(--text-sub);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .rolling-clock {
+            display: flex;
+            align-items: center;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-sub);
+            height: 16px;
+            overflow: hidden;
+        }
+
+        .rolling-group {
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            height: 16px;
+        }
+
+        .rolling-group div {
+            height: 16px;
+            line-height: 16px;
+            text-align: center;
+        }
+
+        .clock-colon {
+            padding: 0 1px;
+            line-height: 14px;
+        }
+
+        .sys-clock-wrapper {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+
+        .gauge-section {
+            position: absolute;
+            top: 74px;
+            left: 116px;
+            right: 20px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.14);
+            border-radius: 2px;
+        }
+
+        .gauge-fill {
+            position: absolute;
+            top: 0; left: 0;
+            height: 100%;
+            width: 44%;
+            border-radius: 2px;
+            background-color: var(--accent-green);
+            transition: width 0.5s linear;
+        }
+
+        .gauge-fill::before {
+            content: '';
+            position: absolute;
+            top: -4px; left: -4px; right: -4px; bottom: -4px;
+            background: var(--accent-green);
+            border-radius: 4px;
+            filter: blur(6px);
+            opacity: 0.45;
+            z-index: -1;
+        }
+
+        .time-now-wrapper {
+            position: absolute;
+            top: 82px;
+            left: 116px;
+        }
+        
+        .time-total-wrapper {
+            position: absolute;
+            top: 82px;
+            right: 20px;
+        }
+
+        .separator-line {
+            position: absolute;
+            top: 118px;
+            left: 30px; 
+            width: 340px; 
+            height: 3px;
+            background-color: rgba(200, 200, 200, 0.55);
+            border-radius: 1.5px;
+            box-shadow: 
+                0 0 3px rgba(255, 255, 255, 0.4),
+                0 0 6px rgba(255, 255, 255, 0.3),
+                0 0 9px rgba(255, 255, 255, 0.2);
+        }
+
+        .lyrics-window {
+            position: absolute;
+            top: 123px;
+            left: 0;
+            width: 100%;
+            height: 95px;
+            perspective: 350px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
+        }
+
+        .lyric-item {
+            position: absolute;
+            font-size: 0.95rem;
+            font-weight: 700;
+            text-align: center;
+            width: 100%;
+            white-space: nowrap;
+            will-change: transform, opacity; 
+            pointer-events: none;
+            transform-style: preserve-3d;
+        }
+
+        /* =========================================
+           機能詳細セクション
+        ========================================= */
+        .features-section {
+            padding: 120px 8%;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 4.5rem;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .feature-card {
+            background: rgba(15, 15, 15, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 36px;
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s ease, box-shadow 0.4s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(29, 185, 84, 0.25);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .icon-box {
+            width: 44px;
+            height: 44px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--accent-green);
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .card-desc {
+            color: var(--text-sub);
+            font-size: 0.92rem;
+            line-height: 1.65;
+        }
+
+        /* =========================================
+           実機デモビデオセクション
+        ========================================= */
+        .demo-video-section {
+            padding: 60px 8% 120px;
+            max-width: 1000px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .video-header {
+            margin-bottom: 3rem;
+        }
+
+        .video-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            letter-spacing: -0.02em;
+        }
+
+        .video-desc {
+            color: var(--text-sub);
+            font-size: 1rem;
+            line-height: 1.7;
+        }
+
+        .video-note {
+            display: block;
+            margin-top: 10px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            /* 引き延ばしを防ぎ、元解像度を活かすためにサイズを制限 */
+            max-width: 360px;
+            margin: 0 auto;
+            border-radius: 18px;
+            padding: 10px;
+            background: rgba(15, 15, 15, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        .video-wrapper video {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 12px;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+            background-color: #000;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(25px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeUpScale {
+            from { opacity: 0; transform: translateY(40px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @media (max-width: 500px) {
+            .hero-title { font-size: 2.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="background-glow orb-green"></div>
+    <div class="background-glow orb-blue"></div>
+
+    <header>
+        <div class="logo">Spotify Overlay</div>
+    </header>
+
+    <main>
+        <section class="hero-section">
+            <h1 class="hero-title">音楽を、もっと美しく。</h1>
+            <p class="hero-subtitle">Direct2Dが描く圧倒的な滑らかさ。アルバムからのダイナミックカラー抽出と立体的な3D歌詞表現が、デスクトップへ洗練されたリスニング体験をもたらします。</p>
+            
+            <div class="cta-container">
+                <a href="https://github.com/piyodayoooo/spotify-overlay/releases/latest/download/Spotify_Overlay.exe" class="btn btn-primary">最新版をダウンロード</a>
+                <a href="https://github.com/piyodayoooo/spotify-overlay/releases" class="btn btn-secondary">すべてのリリースを表示</a>
+            </div>
+
+            <div class="overlay-mockup">
+                <div class="overlay-glow-pulse"></div>
+
+                <div class="album-wrapper">
+                    <div class="album-shadow-pulse"></div>
+                    <div class="album-core"></div>
+                </div>
+                
+                <div class="track-name">Direct2D Rendering Engine</div>
+                <div class="artist-name">Native C++ App</div>
+                
+                <div class="sys-clock-wrapper">
+                    <div class="rolling-clock" id="sys-clock">
+                        <div class="rolling-group" id="h-1"><div>0</div><div>1</div><div>2</div></div>
+                        <div class="rolling-group" id="h-2"><div>0</div><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div></div>
+                        <div class="clock-colon">:</div>
+                        <div class="rolling-group" id="m-1"><div>0</div><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div></div>
+                        <div class="rolling-group" id="m-2"><div>0</div><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div></div>
+                    </div>
+                </div>
+                
+                <div class="gauge-section">
+                    <div class="gauge-fill" id="track-progress"></div>
+                </div>
+                
+                <div class="time-now-wrapper">
+                    <div class="rolling-clock" id="time-now">
+                        <div class="rolling-group" id="p-m1"><div>0</div><div>1</div></div>
+                        <div class="rolling-group" id="p-m2"><div>0</div><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div></div>
+                        <div class="clock-colon">:</div>
+                        <div class="rolling-group" id="p-s1"><div>0</div><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div></div>
+                        <div class="rolling-group" id="p-s2"><div>0</div><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div></div>
+                    </div>
+                </div>
+
+                <div class="time-total-wrapper">
+                    <div class="rolling-clock">
+                        <div>03:10</div>
+                    </div>
+                </div>
+
+                <div class="separator-line"></div>
+
+                <div class="lyrics-window" id="lyrics-stage">
+                </div>
+            </div>
+        </section>
+
+        <section class="features-section">
+            <div class="section-header">
+                <h2 class="section-title">Features</h2>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="icon-box">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    </div>
+                    <h3 class="card-title">Dynamic Color</h3>
+                    <p class="card-desc">再生中のアートワークのピクセル平均から、その曲に最適なカラーを自動計算。アプリ全体の透明度やバックグラウンド発光へ直感的に同期します。</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon-box">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                    </div>
+                    <h3 class="card-title">3D Rolling Lyrics</h3>
+                    <p class="card-desc">C++層での座標計算アルゴリズムに基づき、円筒投影されたかのように曲面を流れる立体的な歌詞表現を搭載。滑らかな進入・退出処理を処理します。</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon-box">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    </div>
+                    <h3 class="card-title">Rolling Time</h3>
+                    <p class="card-desc">システム時間や曲の経過秒数を、1桁ごとに上下へフリップローリングさせて描画。細部までDirect2Dの超軽量・高フレームレート処理が活きています。</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="demo-video-section">
+            <div class="video-header">
+                <h2 class="video-title">Actual Gameplay / App Footage</h2>
+                <p class="video-desc">
+                    ※ページ上部のUIレイアウトは、Web上での簡易的な再現例です。<br>
+                    実際のネイティブアプリ（C++ / Direct2D）における本物のクオリティと滑らかさは、以下の映像でご覧いただけます。
+                    <span class="video-note">（※ページ軽量化の都合上、こちらのデモ動画は低画質となっておりますが、実際のアプリ画面は高解像度で非常にクリアにレンダリングされます）</span>
+                </p>
+            </div>
+            <div class="video-wrapper">
+                <video autoplay loop muted playsinline>
+                    <source src="actual_demo.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // =========================================
+            // 1. 時間のローリング
+            // =========================================
+            function updateClock() {
+                const now = new Date();
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                moveDigit('h-1', hours[0]); moveDigit('h-2', hours[1]);
+                moveDigit('m-1', minutes[0]); moveDigit('m-2', minutes[1]);
+            }
+            function moveDigit(id, val) {
+                const group = document.getElementById(id);
+                if (group) group.style.transform = `translateY(-${parseInt(val, 10) * 16}px)`;
+            }
+            setInterval(updateClock, 1000);
+            updateClock();
+
+            // =========================================
+            // 2. プログレスバー ＆ 進行時間
+            // =========================================
+            const progressFill = document.getElementById('track-progress');
+            let currentSeconds = 84;
+            const totalSeconds = 190;
+            function updateProgress() {
+                currentSeconds = (currentSeconds + 1) > totalSeconds ? 0 : currentSeconds + 1;
+                progressFill.style.width = `${(currentSeconds / totalSeconds) * 100}%`;
+                const mStr = String(Math.floor(currentSeconds / 60)).padStart(2, '0');
+                const sStr = String(currentSeconds % 60).padStart(2, '0');
+                moveDigit('p-m1', mStr[0]); moveDigit('p-m2', mStr[1]);
+                moveDigit('p-s1', sStr[0]); moveDigit('p-s2', sStr[1]);
+            }
+            setInterval(updateProgress, 1000);
+            updateProgress();
+
+            // =========================================
+            // 3. C++アルゴリズム完全準拠の3D歌詞描画
+            // =========================================
+            const lyricsData = [
+                "Direct2Dが描く圧倒的な滑らかさ",
+                "ダイナミックカラー抽出システム搭載",
+                "120FPS環境下での滑らかなインターフェース",
+                "Native C++が実現する極限のパフォーマンス",
+                "デスクトップへ溶け込むグラスモーフィズム",
+                "あなたのお気に入りの曲をもっと美しく"
+            ];
+
+            const stage = document.getElementById('lyrics-stage');
+            const lyricElements = [];
+            
+            lyricsData.forEach(text => {
+                const div = document.createElement('div');
+                div.className = 'lyric-item';
+                div.textContent = text;
+                stage.appendChild(div);
+                lyricElements.push(div);
+            });
+
+            const cylinderRadius = 45.0; 
+            const speed = 0.04;
+            let currentScroll = 0.0;
+            let targetScroll = 0.0;
+
+            function updateLyricsFrame() {
+                currentScroll += (targetScroll - currentScroll) * speed;
+
+                lyricElements.forEach((el, i) => {
+                    const diff = i - currentScroll;
+                    const theta = diff * (Math.PI / 6.0);
+
+                    if (Math.abs(theta) >= Math.PI / 2.0) {
+                        el.style.opacity = '0';
+                        return;
+                    }
+
+                    const y3d = cylinderRadius * Math.sin(theta);
+                    const z3d = cylinderRadius * Math.cos(theta);
+
+                    let alpha = ((z3d + cylinderRadius) / (cylinderRadius * 2.0) - 0.5) / 0.5;
+                    alpha = Math.max(0, Math.min(1, alpha));
+
+                    let glow = (Math.cos(theta) - 0.86) / 0.14;
+                    glow = Math.max(0, glow);
+
+                    el.style.transform = `translateY(${y3d}px) translateZ(${z3d}px) rotateX(${theta}rad)`;
+                    el.style.opacity = alpha.toFixed(3);
+                    
+                    if (glow > 0) {
+                        el.style.color = '#ffffff';
+                        el.style.textShadow = `0 0 ${16 * glow}px rgba(29, 185, 84, ${0.85 * glow})`;
+                    } else {
+                        el.style.color = 'var(--text-sub)';
+                        el.style.textShadow = 'none';
+                    }
+                });
+                requestAnimationFrame(updateLyricsFrame);
+            }
+
+            requestAnimationFrame(updateLyricsFrame);
+
+            setInterval(() => {
+                targetScroll = (targetScroll + 1) % lyricsData.length;
+                if (targetScroll === 0) currentScroll = -1;
+            }, 3000);
+        });
+    </script>
+</body>
+</html>
